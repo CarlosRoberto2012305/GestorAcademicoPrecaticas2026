@@ -1,0 +1,1 @@
+# GestorAcademicoPrecaticas2026
