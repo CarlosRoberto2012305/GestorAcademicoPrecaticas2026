@@ -10,7 +10,8 @@
 		"start:pm2": "pm2 start src/server.js --name gestor-academico-api --update-env",
 		"stop:pm2": "pm2 stop gestor-academico-api",
 		"restart:pm2": "pm2 restart gestor-academico-api --update-env",
-		"logs:pm2": "pm2 logs gestor-academico-api"
+		"logs:pm2": "pm2 logs gestor-academico-api",
+		"db:migrate:schema": "node database/migrate-legacy-data.js"
 	},
 	"dependencies": {
 		"bcrypt": "^6.0.0",

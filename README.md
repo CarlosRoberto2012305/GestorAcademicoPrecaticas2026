@@ -86,6 +86,31 @@ JWT_EXPIRES_IN=8h
 
 El usuario configurado debe tener permisos sobre la base de datos indicada.
 
+## Esquema academico extendido
+
+El esquema SQL compatible se encuentra en `backend/database/schema.sql`. Incluye `Persona`, `Usuario`, `Catedratico`, `Curso`, `Curso_Catedratico`, `Calificacion`, `Publicacion`, `Comentario` y `Curso_Aprobado`.
+
+Para copiar los datos existentes de las tablas legacy al esquema nuevo:
+
+```powershell
+cd backend
+pnpm run db:migrate:schema
+```
+
+La migracion es aditiva e idempotente: no elimina las tablas actuales ni borra datos.
+
+## Usuarios iniciales
+
+Al iniciar el backend se crean estas cuentas si todavía no existen:
+
+| Rol | Nombre | Email | Contrasena |
+| --- | --- | --- | --- |
+| Administrador | Admin General | `admin@demo.com` | `Admin12345!` |
+| Profesor | Profesor Demo | `profesor@demo.com` | `Profesor12345!` |
+| Estudiante | Estudiante Demo | `estudiante@demo.com` | `Estudiante12345!` |
+
+Los datos de estas cuentas se encuentran en `backend/config/default-users.js`. Cambia las credenciales antes de usar el sistema en produccion.
+
 ## Instalacion
 
 Desde la raiz del proyecto:

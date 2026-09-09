@@ -1,5 +1,19 @@
 const { User } = require('../models');
 
+exports.getProfessors = async (req, res, next) => {
+  try {
+    const professors = await User.findAll({
+      where: { rol: 'profesor' },
+      attributes: ['id', 'nombre', 'email', 'rol'],
+      order: [['nombre', 'ASC']],
+    });
+
+    return res.json({ ok: true, professors });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 exports.getUsers = async (req, res, next) => {
   try {
     const users = await User.findAll({

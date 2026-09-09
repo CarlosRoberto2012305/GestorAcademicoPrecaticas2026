@@ -1,33 +1,31 @@
 const { sequelize, User, Course, Grade, Post } = require('./models');
+const defaultUsers = require('../config/default-users');
 
 async function seedDatabase() {
   try {
     await sequelize.sync();
 
-    const existingUsers = await User.count();
-    if (existingUsers === 0) {
-      const admin = await User.create({
-        nombre: 'Admin General',
-        email: 'admin@demo.com',
-        passwordHash: '$2b$10$6rkcI2J7uE5F2f7LnV9BjOHxvT9jVm1qhZu3c3xgD4w3JZ20v3SJ2K',
-        rol: 'admin',
+    for (const defaultUser of defaultUsers) {
+      const [user, created] = await User.findOrCreate({
+        where: { email: defaultUser.email },
+        defaults: {
+          nombre: defaultUser.nombre,
+          passwordHash: defaultUser.passwordHash,
+          rol: defaultUser.rol,
+        },
       });
 
-      const profesor = await User.create({
-        nombre: 'Profesor Demo',
-        email: 'profesor@demo.com',
-        passwordHash: '$2b$10$6rkcI2J7uE5F2f7LnV9BjOHxvT9jVm1qhZu3c3xgD4w3JZ20v3SJ2K',
-        rol: 'profesor',
-      });
+      if (!created && process.env.NODE_ENV !== 'production') {
+        await user.update({
+          nombre: defaultUser.nombre,
+          passwordHash: defaultUser.passwordHash,
+          rol: defaultUser.rol,
+        });
+      }
 
-      const estudiante = await User.create({
-        nombre: 'Estudiante Demo',
-        email: 'estudiante@demo.com',
-        passwordHash: '$2b$10$6rkcI2J7uE5F2f7LnV9BjOHxvT9jVm1qhZu3c3xgD4w3JZ20v3SJ2K',
-        rol: 'estudiante',
-      });
-
-      console.log('Usuarios base creados:', { admin: admin.email, profesor: profesor.email, estudiante: estudiante.email });
+      if (created) {
+        console.log(`Usuario base creado: ${user.email} (${user.rol})`);
+      }
     }
 
     const existingCourses = await Course.count();
@@ -73,6 +71,30 @@ async function seedDatabase() {
       }
 
       console.log('Calificaciones base creadas.');
+    }
+
+    const defaultStudent = await User.findOne({ where: { email: 'estudiante@demo.com' } });
+    const availableCourses = await Course.findAll({ order: [['id', 'ASC']] });
+    if (defaultStudent && availableCourses.length > 0) {
+      const demoGrades = [
+        { score: 92.5, comentario: 'Excelente desempeño' },
+        { score: 88, comentario: 'Buen avance' },
+      ];
+
+      for (const [index, course] of availableCourses.slice(0, 2).entries()) {
+        const existingDemoGrade = await Grade.findOne({
+          where: { studentId: defaultStudent.id, courseId: course.id },
+        });
+
+        if (!existingDemoGrade) {
+          await Grade.create({
+            ...demoGrades[index],
+            periodo: '2026-1',
+            studentId: defaultStudent.id,
+            courseId: course.id,
+          });
+        }
+      }
     }
 
     const existingPosts = await Post.count();

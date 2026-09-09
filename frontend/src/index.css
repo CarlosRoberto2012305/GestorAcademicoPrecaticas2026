@@ -88,6 +88,118 @@ button, input, select {
   margin-bottom: 16px;
 }
 
+.auth-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.auth-heading p {
+  margin: -8px 0 16px;
+  color: #94a3b8;
+}
+
+.login-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  align-items: end;
+  gap: 14px;
+}
+
+.login-form label {
+  display: grid;
+  gap: 6px;
+  color: #bfdbfe;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.login-form input {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #e5eefb;
+  background: rgba(15, 23, 42, 0.8);
+}
+
+.login-form input:focus {
+  outline: 2px solid #60a5fa;
+  outline-offset: 1px;
+}
+
+.comment-form {
+  display: grid;
+  gap: 14px;
+}
+
+.comment-form label {
+  display: grid;
+  gap: 6px;
+  color: #bfdbfe;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.comment-form input,
+.comment-form select,
+.comment-form textarea,
+.section-heading select {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #e5eefb;
+  background: rgba(15, 23, 42, 0.8);
+}
+
+button {
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 16px;
+  color: #082f49;
+  background: #7dd3fc;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.secondary-button {
+  color: #dbeafe;
+  background: rgba(148, 163, 184, 0.2);
+}
+
+.success {
+  color: #86efac;
+  font-weight: 600;
+}
+
+.locked-panel {
+  border-style: dashed;
+  opacity: 0.8;
+}
+
+.locked-message {
+  color: #cbd5e1;
+}
+
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.section-heading p {
+  margin: -8px 0 16px;
+  color: #94a3b8;
+}
+
 pre {
   margin: 0;
   white-space: pre-wrap;
@@ -137,5 +249,11 @@ th {
   .topbar {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .auth-heading,
+  .login-form {
+    grid-template-columns: 1fr;
+    display: grid;
   }
 }
