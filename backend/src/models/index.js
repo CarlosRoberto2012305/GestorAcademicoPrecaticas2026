@@ -12,5 +12,9 @@ Grade.belongsTo(User, { foreignKey: 'studentId', as: 'student' });
 
 User.hasMany(Post, { foreignKey: 'autorId', as: 'posts' });
 Post.belongsTo(User, { foreignKey: 'autorId', as: 'autor' });
+User.hasMany(Post, { foreignKey: 'destinatarioId', as: 'receivedPosts' });
+Post.belongsTo(User, { foreignKey: 'destinatarioId', as: 'destinatario' });
+Course.hasMany(Post, { foreignKey: 'courseId', as: 'posts' });
+Post.belongsTo(Course, { foreignKey: 'courseId', as: 'course' });
 
 module.exports = { sequelize, User, Course, Grade, Post };

@@ -4,7 +4,19 @@ const canManageCourses = (user) => ['admin', 'profesor'].includes(user?.rol);
 
 exports.getCourses = async (req, res, next) => {
   try {
+    const include = req.user?.rol === 'estudiante'
+      ? [{
+        model: Grade,
+        as: 'grades',
+        attributes: [],
+        where: { studentId: req.user.id },
+        required: true,
+      }]
+      : [];
+
     const courses = await Course.findAll({
+      include,
+      distinct: true,
       order: [['id', 'ASC']],
     });
 

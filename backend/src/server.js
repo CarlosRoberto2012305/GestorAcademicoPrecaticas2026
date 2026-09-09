@@ -17,6 +17,14 @@ async function start() {
     logAlert('info', 'Se conectó correctamente a MySQL.');
 
     await sequelize.sync();
+    const queryInterface = sequelize.getQueryInterface();
+    const postColumns = await queryInterface.describeTable('publicaciones');
+    if (!postColumns.destinatarioId) {
+      await queryInterface.addColumn('publicaciones', 'destinatarioId', { type: 'INTEGER', allowNull: true });
+    }
+    if (!postColumns.courseId) {
+      await queryInterface.addColumn('publicaciones', 'courseId', { type: 'INTEGER', allowNull: true });
+    }
     logAlert('info', 'Modelos sincronizados con la base de datos.');
 
     await seedDatabase();

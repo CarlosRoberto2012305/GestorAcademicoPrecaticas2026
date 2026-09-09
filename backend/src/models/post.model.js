@@ -24,6 +24,14 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: false,
     },
+    destinatarioId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    courseId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
   }, {
     tableName: 'publicaciones',
     timestamps: true,

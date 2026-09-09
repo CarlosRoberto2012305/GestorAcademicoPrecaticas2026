@@ -1,26 +1,52 @@
-const { Post, User } = require('../models');
+const { Post, User, Course, Grade } = require('../models');
 
 exports.createPost = async (req, res, next) => {
   try {
-    const { titulo, contenido, categoria = 'general' } = req.body;
-
-    if (!titulo || !contenido) {
-      return res.status(400).json({
+    if (req.user.rol !== 'estudiante') {
+      return res.status(403).json({
         ok: false,
-        message: 'Título y contenido son obligatorios.',
+        message: 'Solo los estudiantes pueden enviar comentarios a profesores.',
       });
     }
+
+    const { titulo, contenido, categoria = 'comentario', destinatarioId, courseId } = req.body;
+
+    if (!titulo || !contenido || !destinatarioId || !courseId) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Título, contenido, profesor y curso son obligatorios.',
+      });
+    }
+
+    const professor = await User.findOne({ where: { id: destinatarioId, rol: 'profesor' } });
+    if (!professor) {
+      return res.status(404).json({ ok: false, message: 'Profesor no encontrado.' });
+    }
+
+    const assignedCourse = await Grade.findOne({
+      where: { studentId: req.user.id, courseId },
+    });
+    if (!assignedCourse) {
+      return res.status(403).json({
+        ok: false,
+        message: 'Solo puedes comentar cursos que tienes asignados.',
+      });
+    }
+
+    const course = await Course.findByPk(courseId);
 
     const post = await Post.create({
       titulo,
       contenido,
       categoria,
       autorId: req.user.id,
+      destinatarioId: professor.id,
+      courseId: course.id,
     });
 
-    const author = await User.findByPk(req.user.id, {
-      attributes: ['id', 'nombre', 'email', 'rol'],
-    });
+    const [author] = await Promise.all([
+      User.findByPk(req.user.id, { attributes: ['id', 'nombre', 'email', 'rol'] }),
+    ]);
 
     return res.status(201).json({
       ok: true,
@@ -28,6 +54,8 @@ exports.createPost = async (req, res, next) => {
       post: {
         ...post.toJSON(),
         autor: author,
+        destinatario: professor,
+        course,
       },
     });
   } catch (error) {
@@ -37,16 +65,44 @@ exports.createPost = async (req, res, next) => {
 
 exports.getPosts = async (req, res, next) => {
   try {
+    const where = {};
+    if (req.user.rol === 'profesor') where.destinatarioId = req.user.id;
+    if (req.user.rol === 'estudiante') where.autorId = req.user.id;
+
     const posts = await Post.findAll({
+      where,
       include: [{
         model: User,
         as: 'autor',
         attributes: ['id', 'nombre', 'email', 'rol'],
+      }, {
+        model: User,
+        as: 'destinatario',
+        attributes: ['id', 'nombre', 'email', 'rol'],
+      }, {
+        model: Course,
+        as: 'course',
+        attributes: ['id', 'nombre', 'codigo'],
       }],
       order: [['createdAt', 'DESC']],
     });
 
     return res.json({ ok: true, posts });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.deletePost = async (req, res, next) => {
+  try {
+    if (req.user.rol !== 'admin') {
+      return res.status(403).json({ ok: false, message: 'Solo un administrador puede eliminar comentarios.' });
+    }
+
+    const post = await Post.findByPk(req.params.id);
+    if (!post) return res.status(404).json({ ok: false, message: 'Comentario no encontrado.' });
+    await post.destroy();
+    return res.json({ ok: true, message: 'Comentario eliminado correctamente.' });
   } catch (error) {
     return next(error);
   }
