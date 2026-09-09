@@ -10,6 +10,9 @@ Aplicacion web para gestionar usuarios, cursos y calificaciones academicas. El p
 - Control de permisos para operaciones de cursos y calificaciones.
 - CRUD de cursos.
 - CRUD de calificaciones.
+- CRUD de usuarios para administradores y gestión de alumnos para profesores.
+- Comentarios de estudiantes dirigidos a catedráticos y filtrados por destinatario.
+- El profesor puede actualizar la nota y el comentario de sus alumnos en cursos asignados.
 - Consulta de usuarios sin exponer `passwordHash`.
 - Reportes de calificaciones por curso y estudiante.
 - Validacion de entradas con `express-validator`.
@@ -111,6 +114,14 @@ Al iniciar el backend se crean estas cuentas si todavía no existen:
 
 Los datos de estas cuentas se encuentran en `backend/config/default-users.js`. Cambia las credenciales antes de usar el sistema en produccion.
 
+## Permisos por rol
+
+| Rol | Permisos |
+| --- | --- |
+| `admin` | Gestionar usuarios, cursos, calificaciones y comentarios. Puede crear, editar y eliminar información. |
+| `profesor` | Ver cursos asignados, administrar alumnos, ver comentarios dirigidos a él y modificar notas/comentarios de sus alumnos. No puede crear o eliminar notas ni modificar cursos. |
+| `estudiante` | Ver únicamente sus cursos asignados con catedrático, consultar sus notas y enviar comentarios al catedrático de un curso asignado. |
+
 ## Instalacion
 
 Desde la raiz del proyecto:
@@ -177,20 +188,27 @@ La URL base es `http://localhost:3000/api`.
 | GET | `/health` | Comprueba que la API esta activa |
 | POST | `/auth/register` | Registra un usuario |
 | POST | `/auth/login` | Inicia sesion y devuelve un JWT |
-| GET | `/users` | Lista usuarios sin contrasenas |
+| GET | `/users` | Lista usuarios sin contrasenas; admin ve todos y profesor solo alumnos |
+| POST | `/users` | Crea un usuario; admin o profesor, el profesor crea alumnos |
+| PUT | `/users/:id` | Actualiza usuario; admin o profesor sobre alumnos |
+| DELETE | `/users/:id` | Elimina usuario; admin o profesor sobre alumnos |
+| GET | `/users/professors` | Lista catedráticos disponibles para el usuario autenticado |
 | GET | `/users/profile` | Consulta el perfil autenticado |
 | GET | `/courses` | Lista cursos, requiere JWT |
-| POST | `/courses` | Crea un curso, requiere rol autorizado |
-| PUT | `/courses/:id` | Actualiza un curso, requiere rol autorizado |
-| DELETE | `/courses/:id` | Elimina un curso, requiere rol autorizado |
+| POST | `/courses` | Crea un curso; solo admin |
+| PUT | `/courses/:id` | Actualiza un curso; solo admin |
+| DELETE | `/courses/:id` | Elimina un curso; solo admin |
 | GET | `/courses/:id/grades` | Lista calificaciones de un curso |
 | GET | `/courses/:id/stats` | Consulta estadisticas de un curso |
-| GET | `/grades` | Lista calificaciones, requiere JWT |
-| POST | `/grades` | Crea una calificacion, requiere rol autorizado |
-| PUT | `/grades/:id` | Actualiza una calificacion |
-| DELETE | `/grades/:id` | Elimina una calificacion |
+| GET | `/grades` | Lista notas del alumno, del profesor en sus cursos o todas para admin |
+| POST | `/grades` | Crea una calificacion; solo admin |
+| PUT | `/grades/:id` | Admin edita cualquier nota; profesor edita nota/comentario de cursos asignados |
+| DELETE | `/grades/:id` | Elimina una calificacion; solo admin |
 | GET | `/grades/student/:studentId` | Lista calificaciones de un estudiante |
 | GET | `/grades/summary/:studentId` | Consulta resumen del estudiante |
+| GET | `/posts` | Admin ve todos, profesor sus comentarios y estudiante los propios |
+| POST | `/posts` | Crea comentario dirigido a un catedrático de un curso asignado |
+| DELETE | `/posts/:id` | Elimina comentario; solo admin |
 
 Para rutas protegidas envia el token asi:
 
@@ -206,6 +224,7 @@ La pagina principal del frontend consulta automaticamente estos recursos:
 - `/api/users`
 - `/api/courses`
 - `/api/grades`
+- `/api/posts`
 
 El estado del backend se muestra por separado de los recursos protegidos. Por eso un error `401` en cursos o calificaciones se informa como falta de autenticacion y no como una falla de la base de datos.
 

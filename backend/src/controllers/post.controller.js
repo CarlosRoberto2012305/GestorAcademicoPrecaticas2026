@@ -1,4 +1,4 @@
-const { Post, User, Course, Grade } = require('../models');
+const { sequelize, Post, User, Course, Grade } = require('../models');
 
 exports.createPost = async (req, res, next) => {
   try {
@@ -30,6 +30,26 @@ exports.createPost = async (req, res, next) => {
       return res.status(403).json({
         ok: false,
         message: 'Solo puedes comentar cursos que tienes asignados.',
+      });
+    }
+
+    const [assignedProfessor] = await sequelize.query(`
+      SELECT legacy.id
+      FROM Curso_Catedratico cc
+      INNER JOIN Curso newCourse ON newCourse.id_curso = cc.id_curso
+      INNER JOIN cursos legacyCourse ON legacyCourse.codigo = newCourse.codigo_curso
+      INNER JOIN Catedratico c ON c.id_catedratico = cc.id_catedratico
+      INNER JOIN Usuario u ON u.id_usuario = c.id_usuario
+      INNER JOIN Persona p ON p.id_persona = c.id_persona
+      INNER JOIN usuarios legacy ON legacy.email = p.correo_electronico
+      WHERE legacyCourse.id = ? AND legacy.id = ? AND u.rol = 'profesor'
+      LIMIT 1
+    `, { replacements: [courseId, destinatarioId] });
+
+    if (!assignedProfessor.length) {
+      return res.status(403).json({
+        ok: false,
+        message: 'El catedrático no está asignado a este curso.',
       });
     }
 

@@ -1,4 +1,4 @@
-const { Course, Grade, User } = require('../models');
+const { sequelize, Course, Grade, User } = require('../models');
 
 const canManageCourses = (user) => ['admin', 'profesor'].includes(user?.rol);
 
@@ -19,6 +19,39 @@ exports.getCourses = async (req, res, next) => {
       distinct: true,
       order: [['id', 'ASC']],
     });
+
+    if (req.user?.rol === 'estudiante') {
+      const [assignedProfessors] = await sequelize.query(`
+         SELECT legacyCourse.id AS courseId, legacy.id AS id, p.nombres AS nombre,
+               p.correo_electronico AS email
+        FROM Curso_Catedratico cc
+         INNER JOIN Curso newCourse ON newCourse.id_curso = cc.id_curso
+         INNER JOIN cursos legacyCourse ON legacyCourse.codigo = newCourse.codigo_curso
+        INNER JOIN Catedratico c ON c.id_catedratico = cc.id_catedratico
+        INNER JOIN Usuario u ON u.id_usuario = c.id_usuario
+        INNER JOIN Persona p ON p.id_persona = c.id_persona
+        INNER JOIN usuarios legacy ON legacy.email = p.correo_electronico
+        WHERE u.rol = 'profesor'
+          AND legacyCourse.id IN (
+            SELECT courseId FROM calificaciones WHERE studentId = ?
+          )
+      `, { replacements: [req.user.id] });
+
+      const professorsByCourse = new Map();
+      assignedProfessors.forEach((professor) => {
+        if (!professorsByCourse.has(professor.courseId)) professorsByCourse.set(professor.courseId, []);
+        professorsByCourse.get(professor.courseId).push({
+          id: professor.id,
+          nombre: professor.nombre,
+          email: professor.email,
+          rol: 'profesor',
+        });
+      });
+
+      courses.forEach((course) => {
+        course.setDataValue('catedraticos', professorsByCourse.get(course.id) || []);
+      });
+    }
 
     return res.json({
       ok: true,
