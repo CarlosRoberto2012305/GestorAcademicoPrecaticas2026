@@ -1,9 +1,10 @@
 const express = require('express');
 const authMiddleware = require('../middlewares/auth.middleware');
-const { getProfile } = require('../controllers/user.controller');
+const { getUsers, getProfile } = require('../controllers/user.controller');
 
 const router = express.Router();
 
+router.get('/', getUsers);
 router.use(authMiddleware);
 router.get('/profile', getProfile);
 
