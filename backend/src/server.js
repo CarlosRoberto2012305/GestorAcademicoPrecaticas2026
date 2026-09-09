@@ -1,6 +1,7 @@
 const app = require('./app');
 const env = require('../config/env');
 const { sequelize } = require('./models');
+const { seedDatabase } = require('./seed');
 
 const logAlert = (level, message) => {
   const prefix = level === 'error' ? '❌' : level === 'warning' ? '⚠️' : '✅';
@@ -17,6 +18,9 @@ async function start() {
 
     await sequelize.sync();
     logAlert('info', 'Modelos sincronizados con la base de datos.');
+
+    await seedDatabase();
+    logAlert('info', 'Datos iniciales generados en todas las tablas.');
 
     app.listen(env.port, () => {
       logAlert('info', `La API está funcionando en http://localhost:${env.port}`);

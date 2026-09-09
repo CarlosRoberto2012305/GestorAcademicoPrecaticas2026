@@ -30,13 +30,30 @@ exports.register = async (req, res, next) => {
       return res.status(400).json({ ok: false, message: 'Faltan nombre, email o password.' });
     }
 
-    const existingUser = await User.findOne({ where: { email } });
+    if (typeof password !== 'string' || password.length <= 8) {
+      return res.status(400).json({
+        ok: false,
+        message: 'La contraseña debe tener más de 8 caracteres.',
+      });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const normalizedNombre = String(nombre).trim();
+
+    if (password.toLowerCase() === normalizedEmail.toLowerCase() || password.toLowerCase() === normalizedNombre.toLowerCase()) {
+      return res.status(400).json({
+        ok: false,
+        message: 'La contraseña no puede ser igual al usuario o al email.',
+      });
+    }
+
+    const existingUser = await User.findOne({ where: { email: normalizedEmail } });
     if (existingUser) {
       return res.status(409).json({ ok: false, message: 'El correo ya está registrado.' });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await User.create({ nombre, email, passwordHash, rol });
+    const user = await User.create({ nombre: normalizedNombre, email: normalizedEmail, passwordHash, rol });
     const token = signToken(user);
 
     return res.status(201).json({
