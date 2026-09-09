@@ -1,4 +1,4 @@
-const { Course } = require('../models');
+const { Course, Grade, User } = require('../models');
 
 const canManageCourses = (user) => ['admin', 'profesor'].includes(user?.rol);
 
@@ -32,6 +32,107 @@ exports.getCourseById = async (req, res, next) => {
     return res.json({
       ok: true,
       course,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.getCourseGrades = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const course = await Course.findByPk(id);
+
+    if (!course) {
+      return res.status(404).json({
+        ok: false,
+        message: 'Curso no encontrado.',
+      });
+    }
+
+    const grades = await Grade.findAll({
+      where: { courseId: id },
+      include: [{
+        model: User,
+        as: 'student',
+        attributes: ['id', 'nombre', 'email', 'rol'],
+      }],
+      order: [['createdAt', 'DESC']],
+    });
+
+    return res.json({
+      ok: true,
+      course: {
+        id: course.id,
+        nombre: course.nombre,
+        codigo: course.codigo,
+      },
+      grades,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.getCourseStats = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const course = await Course.findByPk(id);
+
+    if (!course) {
+      return res.status(404).json({
+        ok: false,
+        message: 'Curso no encontrado.',
+      });
+    }
+
+    const grades = await Grade.findAll({
+      where: { courseId: id },
+      attributes: ['score', 'studentId'],
+    });
+
+    if (!grades.length) {
+      return res.json({
+        ok: true,
+        course: {
+          id: course.id,
+          nombre: course.nombre,
+          codigo: course.codigo,
+        },
+        stats: {
+          totalEstudiantes: 0,
+          promedio: 0,
+          notaMaxima: 0,
+          notaMinima: 0,
+          aprobados: 0,
+          reprobados: 0,
+        },
+      });
+    }
+
+    const scores = grades.map((g) => Number(g.score));
+    const total = scores.reduce((sum, value) => sum + value, 0);
+    const promedio = total / scores.length;
+    const notaMaxima = Math.max(...scores);
+    const notaMinima = Math.min(...scores);
+    const aprobados = scores.filter((value) => value >= 70).length;
+    const reprobados = scores.filter((value) => value < 70).length;
+
+    return res.json({
+      ok: true,
+      course: {
+        id: course.id,
+        nombre: course.nombre,
+        codigo: course.codigo,
+      },
+      stats: {
+        totalEstudiantes: grades.length,
+        promedio: Number(promedio.toFixed(2)),
+        notaMaxima: Number(notaMaxima.toFixed(2)),
+        notaMinima: Number(notaMinima.toFixed(2)),
+        aprobados,
+        reprobados,
+      },
     });
   } catch (error) {
     return next(error);

@@ -43,6 +43,128 @@ exports.getGrades = async (req, res, next) => {
   }
 };
 
+exports.getGradesByCourse = async (req, res, next) => {
+  try {
+    const { courseId } = req.params;
+    const course = await Course.findByPk(courseId);
+
+    if (!course) {
+      return res.status(404).json({ ok: false, message: 'Curso no encontrado.' });
+    }
+
+    if (req.user.rol === 'estudiante') {
+      const studentGrades = await Grade.findAll({
+        where: { courseId, studentId: req.user.id },
+        include: [{ model: Course, as: 'course', attributes: ['id', 'nombre', 'codigo'] }],
+      });
+
+      return res.json({ ok: true, course: { id: course.id, nombre: course.nombre, codigo: course.codigo }, grades: studentGrades });
+    }
+
+    const grades = await Grade.findAll({
+      where: { courseId },
+      include: [
+        { model: Course, as: 'course', attributes: ['id', 'nombre', 'codigo'] },
+        { model: User, as: 'student', attributes: ['id', 'nombre', 'email', 'rol'] },
+      ],
+      order: [['createdAt', 'DESC']],
+    });
+
+    return res.json({ ok: true, course: { id: course.id, nombre: course.nombre, codigo: course.codigo }, grades: grades.map(serializeGrade) });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.getGradesByStudent = async (req, res, next) => {
+  try {
+    const { studentId } = req.params;
+    const student = await User.findByPk(studentId, { attributes: ['id', 'nombre', 'email', 'rol'] });
+
+    if (!student) {
+      return res.status(404).json({ ok: false, message: 'Estudiante no encontrado.' });
+    }
+
+    if (req.user.rol === 'estudiante' && Number(studentId) !== Number(req.user.id)) {
+      return res.status(403).json({ ok: false, message: 'No tienes permisos para ver calificaciones de otro estudiante.' });
+    }
+
+    const grades = await Grade.findAll({
+      where: { studentId },
+      include: [
+        { model: Course, as: 'course', attributes: ['id', 'nombre', 'codigo'] },
+        { model: User, as: 'student', attributes: ['id', 'nombre', 'email', 'rol'] },
+      ],
+      order: [['createdAt', 'DESC']],
+    });
+
+    return res.json({
+      ok: true,
+      student,
+      grades: grades.map(serializeGrade),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.getStudentSummary = async (req, res, next) => {
+  try {
+    const { studentId } = req.params;
+    const student = await User.findByPk(studentId, { attributes: ['id', 'nombre', 'email', 'rol'] });
+
+    if (!student) {
+      return res.status(404).json({ ok: false, message: 'Estudiante no encontrado.' });
+    }
+
+    if (req.user.rol === 'estudiante' && Number(studentId) !== Number(req.user.id)) {
+      return res.status(403).json({ ok: false, message: 'No tienes permisos para ver el resumen de otro estudiante.' });
+    }
+
+    const grades = await Grade.findAll({
+      where: { studentId },
+      attributes: ['score'],
+    });
+
+    if (!grades.length) {
+      return res.json({
+        ok: true,
+        student,
+        summary: {
+          totalCalificaciones: 0,
+          promedioGeneral: 0,
+          notaMaxima: 0,
+          notaMinima: 0,
+          aprobadas: 0,
+          reprobadas: 0,
+        },
+      });
+    }
+
+    const scores = grades.map((g) => Number(g.score));
+    const promedioGeneral = scores.reduce((sum, value) => sum + value, 0) / scores.length;
+    const notaMaxima = Math.max(...scores);
+    const notaMinima = Math.min(...scores);
+    const aprobadas = scores.filter((value) => value >= 70).length;
+    const reprobadas = scores.filter((value) => value < 70).length;
+
+    return res.json({
+      ok: true,
+      student,
+      summary: {
+        totalCalificaciones: scores.length,
+        promedioGeneral: Number(promedioGeneral.toFixed(2)),
+        notaMaxima: Number(notaMaxima.toFixed(2)),
+        notaMinima: Number(notaMinima.toFixed(2)),
+        aprobadas,
+        reprobadas,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 exports.getGradeById = async (req, res, next) => {
   try {
     const { id } = req.params;
