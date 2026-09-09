@@ -8,9 +8,9 @@ const router = express.Router();
 router.use(authMiddleware);
 router.get('/professors', getProfessors);
 router.get('/', roleMiddleware('admin', 'profesor'), getUsers);
-router.post('/', roleMiddleware('admin'), createUser);
-router.put('/:id', roleMiddleware('admin'), updateUser);
-router.delete('/:id', roleMiddleware('admin'), deleteUser);
+router.post('/', roleMiddleware('admin', 'profesor'), createUser);
+router.put('/:id', roleMiddleware('admin', 'profesor'), updateUser);
+router.delete('/:id', roleMiddleware('admin', 'profesor'), deleteUser);
 router.get('/profile', getProfile);
 
 module.exports = router;

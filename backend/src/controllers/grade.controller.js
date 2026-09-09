@@ -1,4 +1,4 @@
-const { Grade, User, Course } = require('../models');
+const { sequelize, Grade, User, Course } = require('../models');
 
 const canManageGrades = (user) => ['admin', 'profesor'].includes(user?.rol);
 
@@ -23,6 +23,20 @@ exports.getGrades = async (req, res, next) => {
 
     if (req.user.rol === 'estudiante') {
       where.studentId = req.user.id;
+    }
+
+    if (req.user.rol === 'profesor') {
+      const [assignedCourses] = await sequelize.query(`
+        SELECT legacyCourse.id
+        FROM Curso_Catedratico cc
+        INNER JOIN Curso newCourse ON newCourse.id_curso = cc.id_curso
+        INNER JOIN cursos legacyCourse ON legacyCourse.codigo = newCourse.codigo_curso
+        INNER JOIN Catedratico c ON c.id_catedratico = cc.id_catedratico
+        INNER JOIN Persona p ON p.id_persona = c.id_persona
+        INNER JOIN usuarios legacyProfessor ON legacyProfessor.email = p.correo_electronico
+        WHERE legacyProfessor.id = ?
+      `, { replacements: [req.user.id] });
+      where.courseId = assignedCourses.map((course) => course.id);
     }
 
     const grades = await Grade.findAll({
@@ -239,7 +253,7 @@ exports.createGrade = async (req, res, next) => {
 
 exports.updateGrade = async (req, res, next) => {
   try {
-    if (!canManageGrades(req.user)) {
+    if (!['admin', 'profesor'].includes(req.user.rol)) {
       return res.status(403).json({ ok: false, message: 'No tienes permisos para actualizar calificaciones.' });
     }
 
@@ -248,6 +262,24 @@ exports.updateGrade = async (req, res, next) => {
 
     if (!grade) {
       return res.status(404).json({ ok: false, message: 'Calificación no encontrada.' });
+    }
+
+    if (req.user.rol === 'profesor') {
+      const [assignedCourse] = await sequelize.query(`
+        SELECT legacyCourse.id
+        FROM Curso_Catedratico cc
+        INNER JOIN Curso newCourse ON newCourse.id_curso = cc.id_curso
+        INNER JOIN cursos legacyCourse ON legacyCourse.codigo = newCourse.codigo_curso
+        INNER JOIN Catedratico c ON c.id_catedratico = cc.id_catedratico
+        INNER JOIN Persona p ON p.id_persona = c.id_persona
+        INNER JOIN usuarios legacyProfessor ON legacyProfessor.email = p.correo_electronico
+        WHERE legacyProfessor.id = ? AND legacyCourse.id = ?
+        LIMIT 1
+      `, { replacements: [req.user.id, grade.courseId] });
+
+      if (!assignedCourse.length) {
+        return res.status(403).json({ ok: false, message: 'Solo puedes modificar notas de tus cursos asignados.' });
+      }
     }
 
     const { score, periodo, comentario, courseId, studentId } = req.body;
@@ -260,10 +292,12 @@ exports.updateGrade = async (req, res, next) => {
       grade.score = numericScore;
     }
 
-    if (periodo !== undefined) grade.periodo = String(periodo).trim();
+    if (req.user.rol === 'admin') {
+      if (periodo !== undefined) grade.periodo = String(periodo).trim();
+      if (courseId !== undefined) grade.courseId = Number(courseId);
+      if (studentId !== undefined) grade.studentId = Number(studentId);
+    }
     if (comentario !== undefined) grade.comentario = comentario ? String(comentario).trim() : null;
-    if (courseId !== undefined) grade.courseId = Number(courseId);
-    if (studentId !== undefined) grade.studentId = Number(studentId);
 
     await grade.save();
 

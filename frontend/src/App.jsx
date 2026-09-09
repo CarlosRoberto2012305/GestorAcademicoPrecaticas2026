@@ -4,6 +4,7 @@ import axios from 'axios';
 const API_URL = 'http://localhost:3000/api';
 
 function App() {
+  // Datos consultados al backend. Cada tabla se actualiza con el intervalo de polling.
   const [health, setHealth] = useState(null);
   const [courses, setCourses] = useState([]);
   const [grades, setGrades] = useState([]);
@@ -35,17 +36,24 @@ function App() {
   const [userForm, setUserForm] = useState({ nombre: '', email: '', password: '', rol: 'estudiante' });
   const [courseForm, setCourseForm] = useState({ nombre: '', codigo: '', descripcion: '', creditos: 1 });
   const [gradeForm, setGradeForm] = useState({ score: '', periodo: '2026-1', comentario: '', courseId: '', studentId: '' });
+
+  // Estos valores controlan qué paneles y acciones se muestran según el rol autenticado.
   const isLoggedIn = Boolean(session);
   const isStudent = session?.rol === 'estudiante';
   const canViewUsers = ['admin', 'profesor'].includes(session?.rol);
   const canViewComments = ['admin', 'profesor'].includes(session?.rol);
   const isAdmin = session?.rol === 'admin';
-  const canManageAcademic = ['admin', 'profesor'].includes(session?.rol);
+  const canManageAcademic = isAdmin;
+  const canManageUsers = ['admin', 'profesor'].includes(session?.rol);
+  const canViewGrades = ['admin', 'profesor', 'estudiante'].includes(session?.rol);
+  const canEditGrades = ['admin', 'profesor'].includes(session?.rol);
+  const canCreateGrades = isAdmin;
   const visiblePosts = session?.rol === 'admin' && selectedProfessorId
     ? posts.filter((post) => String(post.destinatarioId) === String(selectedProfessorId))
     : posts;
 
   const fetchData = async () => {
+    // El token se agrega solo a las peticiones protegidas; health permanece público.
     const token = localStorage.getItem('gestor-academico-token');
     const authConfig = token
       ? { headers: { Authorization: `Bearer ${token}` } }
@@ -54,7 +62,7 @@ function App() {
     const results = await Promise.allSettled([
       axios.get(`${API_URL}/health`),
       axios.get(`${API_URL}/courses`, authConfig),
-      axios.get(`${API_URL}/grades`, authConfig),
+      canViewGrades ? axios.get(`${API_URL}/grades`, authConfig) : Promise.resolve({ data: { grades: [] } }),
       axios.get(`${API_URL}/users`),
       axios.get(`${API_URL}/users/professors`, authConfig),
       axios.get(`${API_URL}/posts`, authConfig),
@@ -103,6 +111,7 @@ function App() {
   };
 
   const handleCommentSubmit = async (event) => {
+    // El formulario de comentarios solo aparece para estudiantes.
     event.preventDefault();
     setCommentLoading(true);
     setCommentMessage('');
@@ -127,6 +136,7 @@ function App() {
   });
 
   const handleAdminSubmit = async (event, type) => {
+    // Un único handler sirve para los formularios de usuarios, cursos y calificaciones.
     event.preventDefault();
     setAdminMessage('');
     const configs = {
@@ -152,6 +162,7 @@ function App() {
   };
 
   const handleAdminDelete = async (type, id) => {
+    // Las eliminaciones se ejecutan en la API y luego se vuelve a consultar la información.
     const paths = { user: '/users', course: '/courses', grade: '/grades', post: '/posts' };
     try {
       await axios.delete(`${API_URL}${paths[type]}/${id}`, adminRequest());
@@ -213,6 +224,7 @@ function App() {
   };
 
   useEffect(() => {
+    // Polling sencillo para mantener el dashboard sincronizado sin recargar la página.
     const initialFetch = setTimeout(fetchData, 0);
 
     const interval = setInterval(() => {
@@ -297,7 +309,7 @@ function App() {
 
         <section className={`panel ${!isLoggedIn ? 'locked-panel' : ''}`}>
           <h2>Cursos</h2>
-          {canManageAcademic && (
+          {(canCreateGrades || editingGradeId) && (
             <form className="admin-form" onSubmit={(event) => handleAdminSubmit(event, 'course')}>
               <input placeholder="Nombre" value={courseForm.nombre} onChange={(event) => setCourseForm({ ...courseForm, nombre: event.target.value })} required />
               <input placeholder="Código" value={courseForm.codigo} onChange={(event) => setCourseForm({ ...courseForm, codigo: event.target.value.toUpperCase() })} required />
@@ -313,6 +325,7 @@ function App() {
               <thead>
                 <tr>
                   <th>Nombre</th><th>Código</th><th>Créditos</th>
+                  {isStudent && <th>Catedrático</th>}
                   {canManageAcademic && <th>Acciones</th>}
                 </tr>
               </thead>
@@ -322,6 +335,7 @@ function App() {
                     <td>{course.nombre}</td>
                     <td>{course.codigo}</td>
                     <td>{course.creditos}</td>
+                    {isStudent && <td>{course.catedraticos?.map((professor) => professor.nombre).join(', ') || 'Sin asignar'}</td>}
                     {canManageAcademic && (
                       <td className="actions">
                         <button type="button" onClick={() => editCourse(course)}>Editar</button>
@@ -340,16 +354,18 @@ function App() {
         {canViewUsers && (
         <section className="panel wide">
           <h2>Usuarios</h2>
-          {isAdmin && (
+          {canManageUsers && (
             <form className="admin-form" onSubmit={(event) => handleAdminSubmit(event, 'user')}>
               <input placeholder="Nombre" value={userForm.nombre} onChange={(event) => setUserForm({ ...userForm, nombre: event.target.value })} required />
               <input type="email" placeholder="Email" value={userForm.email} onChange={(event) => setUserForm({ ...userForm, email: event.target.value })} required />
               <input type="password" placeholder={editingUserId ? 'Nueva contraseña (opcional)' : 'Contraseña'} value={userForm.password} onChange={(event) => setUserForm({ ...userForm, password: event.target.value })} required={!editingUserId} />
-              <select value={userForm.rol} onChange={(event) => setUserForm({ ...userForm, rol: event.target.value })}>
-                <option value="admin">Admin</option>
-                <option value="profesor">Profesor</option>
-                <option value="estudiante">Estudiante</option>
-              </select>
+              {isAdmin ? (
+                <select value={userForm.rol} onChange={(event) => setUserForm({ ...userForm, rol: event.target.value })}>
+                  <option value="admin">Admin</option>
+                  <option value="profesor">Profesor</option>
+                  <option value="estudiante">Estudiante</option>
+                </select>
+              ) : <span className="role-hint">Nuevo usuario: alumno</span>}
               <button type="submit">{editingUserId ? 'Actualizar usuario' : 'Agregar usuario'}</button>
             </form>
           )}
@@ -361,7 +377,7 @@ function App() {
                   <th>Nombre</th>
                   <th>Email</th>
                   <th>Rol</th>
-                  {isAdmin && <th>Acciones</th>}
+                  {canManageUsers && <th>Acciones</th>}
                 </tr>
               </thead>
               <tbody>
@@ -371,7 +387,7 @@ function App() {
                     <td>{user.nombre}</td>
                     <td>{user.email}</td>
                     <td>{user.rol}</td>
-                    {isAdmin && (
+                    {canManageUsers && (
                       <td className="actions">
                         <button type="button" onClick={() => editUser(user)}>Editar</button>
                         <button type="button" className="danger-button" onClick={() => handleAdminDelete('user', user.id)}>Eliminar</button>
@@ -494,7 +510,7 @@ function App() {
           </section>
         )}
 
-        <section className={`panel wide ${!isLoggedIn ? 'locked-panel' : ''}`}>
+        {canViewGrades && <section className={`panel wide ${!isLoggedIn ? 'locked-panel' : ''}`}>
           <h2>Calificaciones</h2>
           {canManageAcademic && (
             <form className="admin-form" onSubmit={(event) => handleAdminSubmit(event, 'grade')}>
@@ -523,7 +539,7 @@ function App() {
                   <th>Periodo</th>
                   <th>Nota</th>
                   {isStudent && <th>Comentario del profesor</th>}
-                  {canManageAcademic && <th>Acciones</th>}
+                  {canEditGrades && <th>Acciones</th>}
                 </tr>
               </thead>
               <tbody>
@@ -534,10 +550,10 @@ function App() {
                     <td>{grade.periodo}</td>
                     <td>{grade.score}</td>
                     {isStudent && <td>{grade.comentario || 'Sin comentario'}</td>}
-                    {canManageAcademic && (
+                    {canEditGrades && (
                       <td className="actions">
                         <button type="button" onClick={() => editGrade(grade)}>Editar</button>
-                        <button type="button" className="danger-button" onClick={() => handleAdminDelete('grade', grade.id)}>Eliminar</button>
+                        {isAdmin && <button type="button" className="danger-button" onClick={() => handleAdminDelete('grade', grade.id)}>Eliminar</button>}
                       </td>
                     )}
                   </tr>
@@ -547,7 +563,7 @@ function App() {
           ) : (
             <p>No hay calificaciones.</p>
           )}
-        </section>
+        </section>}
       </main>
     </div>
   );
