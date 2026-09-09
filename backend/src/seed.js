@@ -110,6 +110,31 @@ async function seedDatabase() {
       }
       console.log('Publicación base creada.');
     }
+
+    const demoStudent = await User.findOne({ where: { email: 'estudiante@demo.com' } });
+    const demoProfessor = await User.findOne({ where: { email: 'profesor@demo.com' } });
+    const demoCourse = await Course.findOne({ order: [['id', 'ASC']] });
+    if (demoStudent && demoProfessor && demoCourse) {
+      const existingDemoComment = await Post.findOne({
+        where: {
+          autorId: demoStudent.id,
+          destinatarioId: demoProfessor.id,
+          courseId: demoCourse.id,
+        },
+      });
+
+      if (!existingDemoComment) {
+        await Post.create({
+          titulo: 'Comentario de prueba',
+          contenido: 'El curso está bien organizado y quisiera recibir más ejercicios prácticos.',
+          categoria: 'comentario',
+          autorId: demoStudent.id,
+          destinatarioId: demoProfessor.id,
+          courseId: demoCourse.id,
+        });
+        console.log('Comentario demo del estudiante creado.');
+      }
+    }
   } catch (error) {
     console.error('Error al sembrar datos iniciales:', error);
   }

@@ -92,3 +92,18 @@ exports.getPosts = async (req, res, next) => {
     return next(error);
   }
 };
+
+exports.deletePost = async (req, res, next) => {
+  try {
+    if (req.user.rol !== 'admin') {
+      return res.status(403).json({ ok: false, message: 'Solo un administrador puede eliminar comentarios.' });
+    }
+
+    const post = await Post.findByPk(req.params.id);
+    if (!post) return res.status(404).json({ ok: false, message: 'Comentario no encontrado.' });
+    await post.destroy();
+    return res.json({ ok: true, message: 'Comentario eliminado correctamente.' });
+  } catch (error) {
+    return next(error);
+  }
+};

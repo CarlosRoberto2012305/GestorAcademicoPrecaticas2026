@@ -154,6 +154,40 @@ button, input, select {
   background: rgba(15, 23, 42, 0.8);
 }
 
+.admin-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.admin-form input,
+.admin-form select {
+  min-width: 150px;
+  flex: 1 1 150px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  padding: 9px 10px;
+  color: #e5eefb;
+  background: rgba(15, 23, 42, 0.8);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.actions button {
+  padding: 6px 9px;
+  font-size: 0.8rem;
+}
+
+.danger-button {
+  color: #fee2e2;
+  background: #b91c1c;
+}
+
 button {
   border: 0;
   border-radius: 8px;

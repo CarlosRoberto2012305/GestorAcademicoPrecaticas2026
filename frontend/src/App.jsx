@@ -28,10 +28,19 @@ function App() {
   });
   const [commentMessage, setCommentMessage] = useState('');
   const [commentLoading, setCommentLoading] = useState(false);
+  const [adminMessage, setAdminMessage] = useState('');
+  const [editingUserId, setEditingUserId] = useState(null);
+  const [editingCourseId, setEditingCourseId] = useState(null);
+  const [editingGradeId, setEditingGradeId] = useState(null);
+  const [userForm, setUserForm] = useState({ nombre: '', email: '', password: '', rol: 'estudiante' });
+  const [courseForm, setCourseForm] = useState({ nombre: '', codigo: '', descripcion: '', creditos: 1 });
+  const [gradeForm, setGradeForm] = useState({ score: '', periodo: '2026-1', comentario: '', courseId: '', studentId: '' });
   const isLoggedIn = Boolean(session);
   const isStudent = session?.rol === 'estudiante';
   const canViewUsers = ['admin', 'profesor'].includes(session?.rol);
   const canViewComments = ['admin', 'profesor'].includes(session?.rol);
+  const isAdmin = session?.rol === 'admin';
+  const canManageAcademic = ['admin', 'profesor'].includes(session?.rol);
   const visiblePosts = session?.rol === 'admin' && selectedProfessorId
     ? posts.filter((post) => String(post.destinatarioId) === String(selectedProfessorId))
     : posts;
@@ -113,6 +122,61 @@ function App() {
     }
   };
 
+  const adminRequest = () => ({
+    headers: { Authorization: `Bearer ${localStorage.getItem('gestor-academico-token')}` },
+  });
+
+  const handleAdminSubmit = async (event, type) => {
+    event.preventDefault();
+    setAdminMessage('');
+    const configs = {
+      user: { path: '/users', form: userForm, id: editingUserId, setForm: setUserForm, empty: { nombre: '', email: '', password: '', rol: 'estudiante' } },
+      course: { path: '/courses', form: courseForm, id: editingCourseId, setForm: setCourseForm, empty: { nombre: '', codigo: '', descripcion: '', creditos: 1 } },
+      grade: { path: '/grades', form: gradeForm, id: editingGradeId, setForm: setGradeForm, empty: { score: '', periodo: '2026-1', comentario: '', courseId: '', studentId: '' } },
+    };
+    const config = configs[type];
+
+    try {
+      const url = `${API_URL}${config.path}${config.id ? `/${config.id}` : ''}`;
+      if (config.id) await axios.put(url, config.form, adminRequest());
+      else await axios.post(url, config.form, adminRequest());
+      config.setForm(config.empty);
+      if (type === 'user') setEditingUserId(null);
+      if (type === 'course') setEditingCourseId(null);
+      if (type === 'grade') setEditingGradeId(null);
+      setAdminMessage('Información guardada correctamente.');
+      await fetchData();
+    } catch (err) {
+      setAdminMessage(err.response?.data?.message || 'No se pudo guardar la información.');
+    }
+  };
+
+  const handleAdminDelete = async (type, id) => {
+    const paths = { user: '/users', course: '/courses', grade: '/grades', post: '/posts' };
+    try {
+      await axios.delete(`${API_URL}${paths[type]}/${id}`, adminRequest());
+      setAdminMessage('Información eliminada correctamente.');
+      await fetchData();
+    } catch (err) {
+      setAdminMessage(err.response?.data?.message || 'No se pudo eliminar la información.');
+    }
+  };
+
+  const editUser = (user) => {
+    setEditingUserId(user.id);
+    setUserForm({ nombre: user.nombre, email: user.email, password: '', rol: user.rol });
+  };
+
+  const editCourse = (course) => {
+    setEditingCourseId(course.id);
+    setCourseForm({ nombre: course.nombre, codigo: course.codigo, descripcion: course.descripcion || '', creditos: course.creditos });
+  };
+
+  const editGrade = (grade) => {
+    setEditingGradeId(grade.id);
+    setGradeForm({ score: grade.score, periodo: grade.periodo, comentario: grade.comentario || '', courseId: grade.courseId, studentId: grade.studentId });
+  };
+
   const handleLogin = async (event) => {
     event.preventDefault();
     setLoginLoading(true);
@@ -172,6 +236,7 @@ function App() {
 
       {loading && <p className="loading">Cargando datos...</p>}
       {error && <p className="error">{error}</p>}
+      {adminMessage && <p className="success">{adminMessage}</p>}
 
       <main className="grid">
         <section className="panel auth-panel wide">
@@ -232,12 +297,24 @@ function App() {
 
         <section className={`panel ${!isLoggedIn ? 'locked-panel' : ''}`}>
           <h2>Cursos</h2>
+          {canManageAcademic && (
+            <form className="admin-form" onSubmit={(event) => handleAdminSubmit(event, 'course')}>
+              <input placeholder="Nombre" value={courseForm.nombre} onChange={(event) => setCourseForm({ ...courseForm, nombre: event.target.value })} required />
+              <input placeholder="Código" value={courseForm.codigo} onChange={(event) => setCourseForm({ ...courseForm, codigo: event.target.value.toUpperCase() })} required />
+              <input type="number" min="1" max="20" placeholder="Créditos" value={courseForm.creditos} onChange={(event) => setCourseForm({ ...courseForm, creditos: event.target.value })} required />
+              <input placeholder="Descripción" value={courseForm.descripcion} onChange={(event) => setCourseForm({ ...courseForm, descripcion: event.target.value })} />
+              <button type="submit">{editingCourseId ? 'Actualizar curso' : 'Agregar curso'}</button>
+            </form>
+          )}
           {!isLoggedIn ? (
             <p className="locked-message">Debes iniciar sesión para ver tus cursos asignados.</p>
           ) : courses.length ? (
             <table>
               <thead>
-                <tr><th>Nombre</th><th>Código</th><th>Créditos</th></tr>
+                <tr>
+                  <th>Nombre</th><th>Código</th><th>Créditos</th>
+                  {canManageAcademic && <th>Acciones</th>}
+                </tr>
               </thead>
               <tbody>
                 {courses.map((course) => (
@@ -245,6 +322,12 @@ function App() {
                     <td>{course.nombre}</td>
                     <td>{course.codigo}</td>
                     <td>{course.creditos}</td>
+                    {canManageAcademic && (
+                      <td className="actions">
+                        <button type="button" onClick={() => editCourse(course)}>Editar</button>
+                        <button type="button" className="danger-button" onClick={() => handleAdminDelete('course', course.id)}>Eliminar</button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -257,6 +340,19 @@ function App() {
         {canViewUsers && (
         <section className="panel wide">
           <h2>Usuarios</h2>
+          {isAdmin && (
+            <form className="admin-form" onSubmit={(event) => handleAdminSubmit(event, 'user')}>
+              <input placeholder="Nombre" value={userForm.nombre} onChange={(event) => setUserForm({ ...userForm, nombre: event.target.value })} required />
+              <input type="email" placeholder="Email" value={userForm.email} onChange={(event) => setUserForm({ ...userForm, email: event.target.value })} required />
+              <input type="password" placeholder={editingUserId ? 'Nueva contraseña (opcional)' : 'Contraseña'} value={userForm.password} onChange={(event) => setUserForm({ ...userForm, password: event.target.value })} required={!editingUserId} />
+              <select value={userForm.rol} onChange={(event) => setUserForm({ ...userForm, rol: event.target.value })}>
+                <option value="admin">Admin</option>
+                <option value="profesor">Profesor</option>
+                <option value="estudiante">Estudiante</option>
+              </select>
+              <button type="submit">{editingUserId ? 'Actualizar usuario' : 'Agregar usuario'}</button>
+            </form>
+          )}
           {users.length ? (
             <table>
               <thead>
@@ -265,6 +361,7 @@ function App() {
                   <th>Nombre</th>
                   <th>Email</th>
                   <th>Rol</th>
+                  {isAdmin && <th>Acciones</th>}
                 </tr>
               </thead>
               <tbody>
@@ -274,6 +371,12 @@ function App() {
                     <td>{user.nombre}</td>
                     <td>{user.email}</td>
                     <td>{user.rol}</td>
+                    {isAdmin && (
+                      <td className="actions">
+                        <button type="button" onClick={() => editUser(user)}>Editar</button>
+                        <button type="button" className="danger-button" onClick={() => handleAdminDelete('user', user.id)}>Eliminar</button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -366,6 +469,7 @@ function App() {
                     <th>Estudiante</th>
                     <th>Titulo</th>
                     <th>Comentario</th>
+                    {isAdmin && <th>Acciones</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -375,6 +479,11 @@ function App() {
                       <td>{post.autor?.nombre || '---'}</td>
                       <td>{post.titulo}</td>
                       <td>{post.contenido}</td>
+                      {isAdmin && (
+                        <td className="actions">
+                          <button type="button" className="danger-button" onClick={() => handleAdminDelete('post', post.id)}>Eliminar</button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -387,6 +496,22 @@ function App() {
 
         <section className={`panel wide ${!isLoggedIn ? 'locked-panel' : ''}`}>
           <h2>Calificaciones</h2>
+          {canManageAcademic && (
+            <form className="admin-form" onSubmit={(event) => handleAdminSubmit(event, 'grade')}>
+              <input type="number" min="0" max="100" step="0.01" placeholder="Nota" value={gradeForm.score} onChange={(event) => setGradeForm({ ...gradeForm, score: event.target.value })} required />
+              <input placeholder="Periodo: 2026-1" value={gradeForm.periodo} onChange={(event) => setGradeForm({ ...gradeForm, periodo: event.target.value })} required />
+              <select value={gradeForm.courseId} onChange={(event) => setGradeForm({ ...gradeForm, courseId: event.target.value })} required>
+                <option value="">Curso</option>
+                {courses.map((course) => <option key={course.id} value={course.id}>{course.nombre}</option>)}
+              </select>
+              <select value={gradeForm.studentId} onChange={(event) => setGradeForm({ ...gradeForm, studentId: event.target.value })} required>
+                <option value="">Estudiante</option>
+                {users.filter((user) => user.rol === 'estudiante').map((user) => <option key={user.id} value={user.id}>{user.nombre}</option>)}
+              </select>
+              <input placeholder="Comentario" value={gradeForm.comentario} onChange={(event) => setGradeForm({ ...gradeForm, comentario: event.target.value })} />
+              <button type="submit">{editingGradeId ? 'Actualizar nota' : 'Agregar nota'}</button>
+            </form>
+          )}
           {!isLoggedIn ? (
             <p className="locked-message">Inicia sesión para consultar tus calificaciones.</p>
           ) : grades.length ? (
@@ -398,6 +523,7 @@ function App() {
                   <th>Periodo</th>
                   <th>Nota</th>
                   {isStudent && <th>Comentario del profesor</th>}
+                  {canManageAcademic && <th>Acciones</th>}
                 </tr>
               </thead>
               <tbody>
@@ -408,6 +534,12 @@ function App() {
                     <td>{grade.periodo}</td>
                     <td>{grade.score}</td>
                     {isStudent && <td>{grade.comentario || 'Sin comentario'}</td>}
+                    {canManageAcademic && (
+                      <td className="actions">
+                        <button type="button" onClick={() => editGrade(grade)}>Editar</button>
+                        <button type="button" className="danger-button" onClick={() => handleAdminDelete('grade', grade.id)}>Eliminar</button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
