@@ -237,6 +237,23 @@ button:disabled {
   color: #cbd5e1;
 }
 
+.app-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 18px;
+  margin-top: 28px;
+  padding: 18px 12px 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  color: #94a3b8;
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.app-footer strong {
+  color: #bfdbfe;
+}
+
 .section-heading {
   display: flex;
   align-items: flex-start;

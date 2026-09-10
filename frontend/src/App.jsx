@@ -565,6 +565,12 @@ function App() {
           )}
         </section>}
       </main>
+
+      <footer className="app-footer">
+        <strong>FACULTAD DE INGENIERIA 2026</strong>
+        <span>PRACTICAS INICIALES</span>
+        <span>AUTORES: Carlos Roberto Franco Juarez 201800559 y Zabdi Jefte Rivas Martinez 202300349</span>
+      </footer>
     </div>
   );
 }
